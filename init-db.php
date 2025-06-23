@@ -17,7 +17,7 @@ try {
 
     // Construction du DSN avec des valeurs par défaut
     $host = $dbParts['host'];
-    $port = $dbParts['port'] ?? '5432'; // Port par défaut PostgreSQL
+    $port = '5432'; // Port par défaut PostgreSQL
     $dbname = ltrim($dbParts['path'], '/');
     $user = $dbParts['user'];
     $password = $dbParts['pass'];
