@@ -3,8 +3,18 @@ header('Content-Type: application/json');
 
 try {
     $dbUrl = getenv('DATABASE_URL');
-    $pdo = new PDO($dbUrl);
-    
+    if (!$dbUrl) {
+        throw new Exception("DATABASE_URL non défini");
+    }
+
+    // Conversion du format
+    $dbopts = parse_url($dbUrl);
+    $dsn = "pgsql:host={$dbopts['host']};port={$dbopts['port']};dbname=" . ltrim($dbopts['path'], '/');
+    $user = $dbopts['user'];
+    $password = $dbopts['pass'];
+
+    $pdo = new PDO($dsn, $user, $password);
+
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
@@ -14,8 +24,9 @@ try {
             password VARCHAR(255) NOT NULL
         )
     ");
-    
+
     echo json_encode(['success' => 'Table users créée']);
-} catch (PDOException $e) {
+} catch (Exception $e) {
     echo json_encode(['error' => $e->getMessage()]);
 }
+?>
