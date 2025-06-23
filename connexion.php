@@ -9,7 +9,8 @@ if (!$dbUrl) {
 
 $dbParts = parse_url($dbUrl);
 $dbHost = $dbParts['host'];
-$dbPort = $dbParts['port'];
+// $dbPort = $dbParts['port'];
+$dbPort = '5432';
 $dbUser = $dbParts['user'];
 $dbPass = $dbParts['pass'];
 $dbName = ltrim($dbParts['path'], '/');
