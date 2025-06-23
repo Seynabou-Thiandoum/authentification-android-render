@@ -9,11 +9,13 @@ if (!$dbUrl) {
 
 $dbParts = parse_url($dbUrl);
 $dbHost = $dbParts['host'];
-$dbPort = $dbParts['port'];
+$dbPort = $dbParts['port'] ?? '5432'; // si "port" existe, on l’utilise, sinon 5432
+// $dbPort = $dbParts['port'];
 $dbUser = $dbParts['user'];
 $dbPass = $dbParts['pass'];
 $dbName = ltrim($dbParts['path'], '/');
-
+var_dump($dbUrl);
+var_dump($dbParts);
 try {
     $pdo = new PDO(
         "pgsql:host=$dbHost;port=$dbPort;dbname=$dbName",
