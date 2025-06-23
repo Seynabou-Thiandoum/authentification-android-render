@@ -2,33 +2,32 @@
 header('Content-Type: application/json');
 
 try {
-    // Récupération de DATABASE_URL
     $dbUrl = getenv('DATABASE_URL');
     if (!$dbUrl) {
-        throw new Exception("DATABASE_URL non défini dans les variables d'environnement");
+        throw new Exception("DATABASE_URL environment variable not set");
     }
 
-    // Parse l'URL pour extraire les composants
+    // Parse l'URL de la base de données
     $dbParts = parse_url($dbUrl);
     
-    // Construction du DSN pour PDO
-    $dsn = sprintf(
-        "pgsql:host=%s;port=%s;dbname=%s",
-        $dbParts['host'],
-        $dbParts['port'],
-        ltrim($dbParts['path'], '/')
-    );
+    // Vérification des composants essentiels
+    if (!isset($dbParts['host'], $dbParts['user'], $dbParts['pass'], $dbParts['path'])) {
+        throw new Exception("Invalid DATABASE_URL format");
+    }
 
-    // Connexion PDO
-    $pdo = new PDO(
-        $dsn,
-        $dbParts['user'],
-        $dbParts['pass'],
-        [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
-        ]
-    );
+    // Construction du DSN avec des valeurs par défaut
+    $host = $dbParts['host'];
+    $port = $dbParts['port'] ?? '5432'; // Port par défaut PostgreSQL
+    $dbname = ltrim($dbParts['path'], '/');
+    $user = $dbParts['user'];
+    $password = $dbParts['pass'];
+
+    $dsn = "pgsql:host=$host;port=$port;dbname=$dbname";
+
+    $pdo = new PDO($dsn, $user, $password, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+    ]);
 
     // Création de la table
     $pdo->exec("
@@ -41,11 +40,13 @@ try {
         )
     ");
 
-    echo json_encode(['success' => 'Connexion réussie et table users créée']);
-
+    echo json_encode(['success' => 'Database initialized successfully']);
+    
 } catch (PDOException $e) {
-    echo json_encode(['error' => 'Erreur PDO: ' . $e->getMessage()]);
+    http_response_code(500);
+    echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
 } catch (Exception $e) {
+    http_response_code(400);
     echo json_encode(['error' => $e->getMessage()]);
 }
 ?>
