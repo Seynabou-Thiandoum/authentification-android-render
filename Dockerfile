@@ -1,12 +1,24 @@
-# Utiliser une image officielle PHP
-FROM php:8.1-cli
+# Image de base avec Apache pour le déploiement web
+FROM php:8.2-apache
 
-# Copier tous les fichiers dans le conteneur
-COPY . /usr/src/app
-WORKDIR /usr/src/app
+# Installer les dépendances nécessaires pour PostgreSQL
+RUN apt-get update && \
+    apt-get install -y libpq-dev && \
+    docker-php-ext-install pdo pdo_pgsql
 
-# Exposer le port utilisé par le serveur PHP
-EXPOSE 10000
+# Configurer Apache
+ENV APACHE_DOCUMENT_ROOT /var/www/html
+WORKDIR /var/www/html
 
-# Commande pour démarrer ton projet PHP
-CMD ["php", "-S", "0.0.0.0:10000", "-t", "."]
+# Copier les fichiers de l'application
+COPY . .
+
+# Configurer les permissions
+RUN chown -R www-data:www-data /var/www/html && \
+    a2enmod rewrite
+
+# Port exposé (doit correspondre à celui utilisé dans votre code PHP)
+EXPOSE 80
+
+# Démarrer Apache au lancement
+CMD ["apache2-foreground"]
