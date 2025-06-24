@@ -1,16 +1,15 @@
 <?php
-header("Content-type: application/json");
+// Activer le buffer de sortie
+ob_start();
 
-// 1. Connexion à PostgreSQL (utilisez les variables d'environnement)
-$dbUrl = getenv('DATABASE_URL');
-if (!$dbUrl) {
-    die(json_encode(['error' => 'DATABASE_URL non configurée']));
-}
+header("Content-Type: application/json");
+
+// 1. Connexion à PostgreSQL
+$dbUrl = "postgresql://authentification_db_o2gl_user:74brY4XTBJCY4W9EK20lYjRPnOPRNbPV@dpg-d1clqcadbo4c73d06t7g-a/authentification_db_o2gl";
 
 $dbParts = parse_url($dbUrl);
 $dbHost = $dbParts['host'];
-// $dbPort = $dbParts['port'];
-$dbPort = '5432';
+$dbPort = $dbParts['port'] ?? '5432';// Port par défaut PostgreSQL
 $dbUser = $dbParts['user'];
 $dbPass = $dbParts['pass'];
 $dbName = ltrim($dbParts['path'], '/');
@@ -28,21 +27,20 @@ try {
 
 // 2. Vérification des données POST
 if (empty($_POST["username"]) || empty($_POST["password"])) {
-    echo json_encode(['error' => 'Merci de fournir un username et password']);
+    echo json_encode(['error' => 'Identifiants requis']);
     exit;
 }
 
-// 3. Requête sécurisée avec prepared statements
+// 3. Authentification
 try {
-    $stmt = $pdo->prepare("SELECT id, nom, prenom, username FROM users WHERE username = :username AND password = :password");
-    $stmt->execute([
-        ':username' => $_POST["username"],
-        ':password' => $_POST["password"] // À remplacer par du hash en production!
-    ]);
-    
+    // Récupérer l'utilisateur avec le mot de passe hashé
+    $stmt = $pdo->prepare("SELECT id, nom, prenom, username, password FROM users WHERE username = :username");
+    $stmt->execute([':username' => $_POST["username"]]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    if ($user) {
+    if ($user && password_verify($_POST["password"], $user['password'])) {
+        // Ne pas renvoyer le mot de passe
+        unset($user['password']);
         echo json_encode([
             'success' => true,
             'user' => $user
@@ -51,48 +49,9 @@ try {
         echo json_encode(['error' => 'Identifiants incorrects']);
     }
 } catch (PDOException $e) {
-    echo json_encode(['error' => 'Erreur de requête: ' . $e->getMessage()]);
+    echo json_encode(['error' => 'Erreur d\'authentification: ' . $e->getMessage()]);
 }
+
+// Envoyer le buffer
+ob_end_flush();
 ?>
-
-
-
-
-
-
-
-<!-- <?php
-
-header("Content-type: application/json");
-
-$mysqli = new mysqli("sql210.infinityfree.com","if0_39155606","2002banyeZ","if0_39155606_XXX");
-
-// Check connection
-if ($mysqli -> connect_errno) {
-  echo "Failed to connect to MySQL: " . $mysqli -> connect_error;
-  exit();
-}
-//echo "connexion est ok" ;
-
- $reponses="";
-
-if(!empty($_POST["username"]) && !empty($_POST["password"]) ) {
-    // requete sql
-
-    $sql = "SELECT *  FROM users where username= '". $_POST["username"]."'  and 
-     password= '". $_POST["password"]."'";
-    
-   //  echo "request sql=  ".$sql ;
-    $result = $mysqli -> query($sql); 
-    $row = $result -> fetch_array(MYSQLI_ASSOC);
-    //printf ("%s (%s)\n", $row["nom"], $row["prenom"]);
-     
-
- $reponses= "{'nom':'".$row["nom"]."', 'prenom':'".$row["prenom"]."','username':'".$row["username"]."' ,'password':'".$row["password"]."', 'id':'".$row["id"]."'}";
-}else{
-    $reponses="merci de fournir un username et  password " ;
-}
-echo $reponses ;
-
-
-?> -->
