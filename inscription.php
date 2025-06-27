@@ -14,8 +14,8 @@ $dbPort = $dbParts['port'] ?? '5432'; // si "port" existe, on l’utilise, sinon
 $dbUser = $dbParts['user'];
 $dbPass = $dbParts['pass'];
 $dbName = ltrim($dbParts['path'], '/');
-var_dump($dbUrl);
-var_dump($dbParts);
+<!-- var_dump($dbUrl);
+var_dump($dbParts); -->
 try {
     $pdo = new PDO(
         "pgsql:host=$dbHost;port=$dbPort;dbname=$dbName",
