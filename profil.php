@@ -24,8 +24,9 @@ if (!$dbUrl) {
 }
 $dbParts = parse_url($dbUrl);
 $dbPort = $dbParts['port'] ?? '5432';// Port par défaut PostgreSQL
+$dbHost = $dbParts['host'];
 
-$dsn = "pgsql:host={$dbPort};";
+$dsn = "pgsql:host={$dbHost};";
 if (isset($dbPort)) $dsn .= "port={$dbPort};";
 $dsn .= "dbname=" . ltrim($dbParts['path'], '/');
 $dbUser = $dbParts['user'];
