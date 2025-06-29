@@ -5,7 +5,13 @@ header('Content-Type: application/json');
 session_start();
 $user_id = $_SESSION['user_id'] ?? null;
 
-// Pour une API, tu peux aussi récupérer l'id via un token ou un paramètre POST/GET
+// Pour une API mobile, on accepte aussi user_id en GET ou POST
+if (isset($_GET['user_id'])) {
+    $user_id = $_GET['user_id'];
+} elseif (isset($_POST['user_id'])) {
+    $user_id = $_POST['user_id'];
+}
+
 if (!$user_id) {
     echo json_encode(['error' => 'Utilisateur non connecté']);
     exit;
@@ -17,8 +23,10 @@ if (!$dbUrl) {
     exit;
 }
 $dbParts = parse_url($dbUrl);
-$dsn = "pgsql:host={$dbParts['host']};";
-if (isset($dbParts['port'])) $dsn .= "port={$dbParts['port']};";
+$dbPort = $dbParts['port'] ?? '5432';// Port par défaut PostgreSQL
+
+$dsn = "pgsql:host={$dbPort};";
+if (isset($dbPort)) $dsn .= "port={$dbPort};";
 $dsn .= "dbname=" . ltrim($dbParts['path'], '/');
 $dbUser = $dbParts['user'];
 $dbPass = $dbParts['pass'];
