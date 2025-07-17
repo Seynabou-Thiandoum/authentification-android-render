@@ -1,34 +1,54 @@
 <?php
-
 header("Content-type: application/json");
 
-$mysqli = new mysqli("sql210.infinityfree.com","if0_39155606","2002banyeZ","if0_39155606_XXX");
-
-// Check connection
-if ($mysqli -> connect_errno) {
-  echo "Failed to connect to MySQL: " . $mysqli -> connect_error;
-  exit();
+// 1. Connexion à PostgreSQL via les variables d'environnement
+$dbUrl = getenv('DATABASE_URL');
+if (!$dbUrl) {
+    die(json_encode(['error' => 'Configuration database manquante']));
 }
-//echo "connexion est ok" ;
 
- $reponses="";
+$dbParts = parse_url($dbUrl);
+$dbHost = $dbParts['host'];
+$dbPort = $dbParts['port'] ?? '5432';
+$dbUser = $dbParts['user'];
+$dbPass = $dbParts['pass'];
+$dbName = ltrim($dbParts['path'], '/');
 
-if(!empty($_POST["user_id"])   ) {
-    // requete sql
+try {
+    $pdo = new PDO(
+        "pgsql:host=$dbHost;port=$dbPort;dbname=$dbName",
+        $dbUser,
+        $dbPass,
+        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+    );
+} catch (PDOException $e) {
+    die(json_encode(['error' => 'Connexion database échouée: ' . $e->getMessage()]));
+}
 
-    $sql = "SELECT *  FROM message where sender= '". $_POST["user_id"]."'  or 
-     receveir= '". $_POST["user_id"]."'";
+// 2. Vérification des données
+if (empty($_POST["user_id"])) {
+    echo json_encode(['error' => 'Merci de fournir un user_id']);
+    exit;
+}
+
+// 3. Requête sécurisée avec PDO
+try {
+    $stmt = $pdo->prepare("
+        SELECT * FROM message 
+        WHERE sender = :user_id OR receveir = :user_id
+        ORDER BY id DESC
+    ");
     
-   //  echo "request sql=  ".$sql ;
-    $result = $mysqli -> query($sql); 
-    $row = $result -> fetch_array(MYSQLI_ASSOC);
-    //printf ("%s (%s)\n", $row["nom"], $row["prenom"]);
-     
-        $reponses= "{'id':'".$row["id"]."', 'contenu':'".$row["contenu"]."','sender':'".$row["sender"]."' ,'receveir':'".$row["receveir"]."'}";
-}else{
-    $reponses="merci de fournir un user_id " ;
+    $stmt->execute([':user_id' => $_POST["user_id"]]);
+    $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    echo json_encode([
+        'success' => true,
+        'messages' => $messages,
+        'count' => count($messages)
+    ]);
+    
+} catch (PDOException $e) {
+    echo json_encode(['error' => 'Erreur database: ' . $e->getMessage()]);
 }
-echo $reponses ;
-
-
 ?>

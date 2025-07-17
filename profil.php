@@ -13,7 +13,7 @@ if (isset($_GET['user_id'])) {
 }
 
 if (!$user_id) {
-    echo json_encode(['error' => 'Utilisateur non connecté']);
+    echo json_encode(['error' => 'Utilisateurrr non connecté']);
     exit;
 }
 
@@ -38,7 +38,7 @@ try {
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+if ($_  SERVER['REQUEST_METHOD'] === 'GET') {
     $stmt = $pdo->prepare("SELECT nom, prenom, username FROM users WHERE id = ?");
     $stmt->execute([$user_id]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -52,6 +52,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = json_decode(file_get_contents('php://input'), true);
+    if (isset($data['user_id'])) {
+        $user_id = $data['user_id'];
+    }
     if (!$data) {
         echo json_encode(['error' => 'Données JSON manquantes']);
         exit;
