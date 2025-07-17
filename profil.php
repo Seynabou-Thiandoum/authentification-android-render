@@ -38,7 +38,7 @@ try {
     exit;
 }
 
-if ($_  SERVER['REQUEST_METHOD'] === 'GET') {
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $stmt = $pdo->prepare("SELECT nom, prenom, username FROM users WHERE id = ?");
     $stmt->execute([$user_id]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
