@@ -77,11 +77,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         // Modification email (username)
         if (isset($data['email']) && !empty($data['email'])) {
-            $stmt = $pdo->prepare("UPDATE users SET username = ? WHERE id = ?");
-            $stmt->execute([$data['email'], $user_id]);
-            if ($stmt->rowCount() > 0) {
-                $success = true;
-                $messages[] = 'Email mis à jour';
+            // Vérifier l'ancien email si fourni
+            if (isset($data['old_email']) && !empty($data['old_email'])) {
+                $stmt = $pdo->prepare("SELECT username FROM users WHERE id = ?");
+                $stmt->execute([$user_id]);
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($row && $data['old_email'] === $row['username']) {
+                    // Ancien email correct, procéder à la mise à jour
+                    $stmt = $pdo->prepare("UPDATE users SET username = ? WHERE id = ?");
+                    $stmt->execute([$data['email'], $user_id]);
+                    if ($stmt->rowCount() > 0) {
+                        $success = true;
+                        $messages[] = 'Email mis à jour';
+                    }
+                } else {
+                    $errors[] = 'Ancien email incorrect';
+                }
+            } else {
+                // Pas d'ancien email fourni, mise à jour directe (moins sécurisé)
+                $stmt = $pdo->prepare("UPDATE users SET username = ? WHERE id = ?");
+                $stmt->execute([$data['email'], $user_id]);
+                if ($stmt->rowCount() > 0) {
+                    $success = true;
+                    $messages[] = 'Email mis à jour';
+                }
             }
         }
 
