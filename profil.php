@@ -28,6 +28,7 @@ $dbUser = $dbParts['user'];
 $dbPass = $dbParts['pass'];
 try {
     $pdo = new PDO($dsn, $dbUser, $dbPass);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 } catch (PDOException $e) {
     echo json_encode(['error' => 'Erreur de connexion : ' . $e->getMessage()]);
     exit;
@@ -71,37 +72,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $success = false;
     $messages = [];
+    $errors = [];
 
-    // Modification email (username)
-    if (isset($data['email'])) {
-        $stmt = $pdo->prepare("UPDATE users SET username = ? WHERE id = ?");
-        $stmt->execute([$data['email'], $user_id]);
-        $success = true;
-        $messages[] = 'Email mis à jour';
-    }
-
-    // Changement de mot de passe
-    if (!empty($data['old_password']) && !empty($data['new_password'])) {
-        $stmt = $pdo->prepare("SELECT password FROM users WHERE id = ?");
-        $stmt->execute([$user_id]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($row && password_verify($data['old_password'], $row['password'])) {
-            $new_password_hash = password_hash($data['new_password'], PASSWORD_DEFAULT);
-            $stmt = $pdo->prepare("UPDATE users SET password = ? WHERE id = ?");
-            $stmt->execute([$new_password_hash, $user_id]);
-            $success = true;
-            $messages[] = 'Mot de passe changé';
-        } else {
-            echo json_encode(['error' => 'Ancien mot de passe incorrect']);
-            exit;
+    try {
+        // Modification email (username)
+        if (isset($data['email']) && !empty($data['email'])) {
+            $stmt = $pdo->prepare("UPDATE users SET username = ? WHERE id = ?");
+            $stmt->execute([$data['email'], $user_id]);
+            if ($stmt->rowCount() > 0) {
+                $success = true;
+                $messages[] = 'Email mis à jour';
+            }
         }
-    }
 
-    if ($success) {
-        echo json_encode(['success' => implode(' / ', $messages)]);
-    } else {
-        echo json_encode(['error' => 'Aucune modification effectuée']);
+        // Changement de mot de passe
+        if (!empty($data['old_password']) && !empty($data['new_password'])) {
+            // Vérifier l'ancien mot de passe
+            $stmt = $pdo->prepare("SELECT password FROM users WHERE id = ?");
+            $stmt->execute([$user_id]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($row && password_verify($data['old_password'], $row['password'])) {
+                // Vérifier que le nouveau mot de passe est différent
+                if ($data['old_password'] === $data['new_password']) {
+                    $errors[] = 'Le nouveau mot de passe doit être différent de l\'ancien';
+                } else {
+                    // Vérifier la force du mot de passe (optionnel)
+                    if (strlen($data['new_password']) < 6) {
+                        $errors[] = 'Le nouveau mot de passe doit contenir au moins 6 caractères';
+                    } else {
+                        $new_password_hash = password_hash($data['new_password'], PASSWORD_DEFAULT);
+                        $stmt = $pdo->prepare("UPDATE users SET password = ? WHERE id = ?");
+                        $stmt->execute([$new_password_hash, $user_id]);
+                        if ($stmt->rowCount() > 0) {
+                            $success = true;
+                            $messages[] = 'Mot de passe changé';
+                        }
+                    }
+                }
+            } else {
+                $errors[] = 'Ancien mot de passe incorrect';
+            }
+        }
+
+        // Réponse finale
+        if (!empty($errors)) {
+            echo json_encode(['error' => implode(' / ', $errors)]);
+        } elseif ($success) {
+            echo json_encode(['success' => implode(' / ', $messages)]);
+        } else {
+            echo json_encode(['error' => 'Aucune modification effectuée']);
+        }
+
+    } catch (PDOException $e) {
+        echo json_encode(['error' => 'Erreur database: ' . $e->getMessage()]);
     }
     exit;
 }
