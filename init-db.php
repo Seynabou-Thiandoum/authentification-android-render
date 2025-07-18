@@ -29,18 +29,31 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
     ]);
 
-    // Création de la table
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            nom VARCHAR(100) NOT NULL,
-            prenom VARCHAR(100) NOT NULL,
-            username VARCHAR(50) UNIQUE NOT NULL,
-            password VARCHAR(255) NOT NULL
-        )
-    ");
+      // Création de la table message
+      $pdo->exec("
+      CREATE TABLE IF NOT EXISTS message (
+          id SERIAL PRIMARY KEY,
+          sender INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          receveir INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          contenu TEXT NOT NULL,
+          date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+  ");
 
-    echo json_encode(['success' => 'Database initialized successfully']);
+  echo json_encode(['success' => 'Table message créée avec succès']);
+  
+    // // Création de la table
+    // $pdo->exec("
+    //     CREATE TABLE IF NOT EXISTS users (
+    //         id SERIAL PRIMARY KEY,
+    //         nom VARCHAR(100) NOT NULL,
+    //         prenom VARCHAR(100) NOT NULL,
+    //         username VARCHAR(50) UNIQUE NOT NULL,
+    //         password VARCHAR(255) NOT NULL
+    //     )
+    // ");
+
+    // echo json_encode(['success' => 'Database initialized successfully']);
     
 } catch (PDOException $e) {
     http_response_code(500);
