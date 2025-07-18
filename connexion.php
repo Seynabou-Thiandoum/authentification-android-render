@@ -5,8 +5,10 @@ ob_start();
 header("Content-Type: application/json");
 
 // 1. Connexion à PostgreSQL
-$dbUrl = "postgresql://authentification_db_o2gl_user:74brY4XTBJCY4W9EK20lYjRPnOPRNbPV@dpg-d1clqcadbo4c73d06t7g-a/authentification_db_o2gl";
-
+$dbUrl = getenv('DATABASE_URL');
+if (!$dbUrl) {
+    die(json_encode(['error' => 'Configuration database manquante']));
+}
 $dbParts = parse_url($dbUrl);
 $dbHost = $dbParts['host'];
 $dbPort = $dbParts['port'] ?? '5432';// Port par défaut PostgreSQL
