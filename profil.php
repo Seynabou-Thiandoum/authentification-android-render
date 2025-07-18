@@ -12,11 +12,6 @@ if (isset($_GET['user_id'])) {
     $user_id = $_POST['user_id'];
 }
 
-if (!$user_id) {
-    echo json_encode(['error' => 'Utilisateurrr non connecté']);
-    exit;
-}
-
 $dbUrl = getenv('DATABASE_URL');
 if (!$dbUrl) {
     echo json_encode(['error' => "DATABASE_URL non trouvée"]);
@@ -39,6 +34,12 @@ try {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    // Vérification user_id pour GET
+    if (!$user_id) {
+        echo json_encode(['error' => 'Utilisateur non connecté']);
+        exit;
+    }
+    
     $stmt = $pdo->prepare("SELECT nom, prenom, username FROM users WHERE id = ?");
     $stmt->execute([$user_id]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -52,23 +53,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = json_decode(file_get_contents('php://input'), true);
+    if (!$data) {
+        echo json_encode(['error' => 'Données JSON manquantes']);
+        exit;
+    }
+    
+    // Lecture du user_id depuis le JSON
     if (isset($data['user_id'])) {
         $user_id = $data['user_id'];
     }
-    if (!$data) {
-        echo json_encode(['error' => 'Données JSON manquantes']);
+    
+    // Vérification user_id pour POST (APRÈS avoir lu le JSON)
+    if (!$user_id) {
+        echo json_encode(['error' => 'Utilisateur non connecté']);
         exit;
     }
 
     $success = false;
     $messages = [];
 
-    // Modification nom/prénom
-    if (isset($data['nom']) && isset($data['prenom'])) {
-        $stmt = $pdo->prepare("UPDATE users SET nom = ?, prenom = ? WHERE id = ?");
-        $stmt->execute([$data['nom'], $data['prenom'], $user_id]);
+    // Modification email (username)
+    if (isset($data['email'])) {
+        $stmt = $pdo->prepare("UPDATE users SET username = ? WHERE id = ?");
+        $stmt->execute([$data['email'], $user_id]);
         $success = true;
-        $messages[] = 'Profil mis à jour';
+        $messages[] = 'Email mis à jour';
     }
 
     // Changement de mot de passe
