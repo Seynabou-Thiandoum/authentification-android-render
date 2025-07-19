@@ -31,82 +31,68 @@ if (empty($_POST["user_id"])) {
     exit;
 }
 
-// Dans message.php, ajouter :
 $other_user_id = $_POST["other_user_id"] ?? null;
 
-// 3. Requête sécurisée avec PDO - Récupérer les messages avec les infos des utilisateurs
+if (!$other_user_id) {
+    echo json_encode(['error' => 'Merci de fournir un other_user_id']);
+    exit;
+}
+
+// 3. Récupérer les messages entre les deux utilisateurs avec les infos des utilisateurs
 try {
-    if ($other_user_id) {
-        // Filtrer les messages entre les deux utilisateurs
-        $stmt = $pdo->prepare("
-            SELECT 
-                m.id,
-                m.contenu,
-                m.sender,
-                m.receveir,
-                m.date_creation,
-                sender_user.nom as sender_nom,
-                sender_user.prenom as sender_prenom,
-                sender_user.username as sender_username,
-                receiver_user.nom as receiver_nom,
-                receiver_user.prenom as receiver_prenom,
-                receiver_user.username as receiver_username
-            FROM message m
-            LEFT JOIN users sender_user ON m.sender = sender_user.id
-            LEFT JOIN users receiver_user ON m.receveir = receiver_user.id
-            WHERE (m.sender = :user_id AND m.receveir = :other_user_id)
-               OR (m.sender = :other_user_id AND m.receveir = :user_id)
-            ORDER BY m.date_creation ASC
-        ");
-        $stmt->execute([':user_id' => $_POST["user_id"], ':other_user_id' => $other_user_id]);
-    } else {
-        // Ancienne logique pour toutes les conversations
-        $stmt = $pdo->prepare("
-            SELECT 
-                m.id,
-                m.contenu,
-                m.sender,
-                m.receveir,
-                m.date_creation,
-                sender_user.nom as sender_nom,
-                sender_user.prenom as sender_prenom,
-                sender_user.username as sender_username,
-                receiver_user.nom as receiver_nom,
-                receiver_user.prenom as receiver_prenom,
-                receiver_user.username as receiver_username
-            FROM message m
-            LEFT JOIN users sender_user ON m.sender = sender_user.id
-            LEFT JOIN users receiver_user ON m.receveir = receiver_user.id
-            WHERE m.sender = :user_id OR m.receveir = :user_id
-            ORDER BY m.date_creation DESC
-        ");
-        $stmt->execute([':user_id' => $_POST["user_id"]]);
-    }
+    $stmt = $pdo->prepare("
+        SELECT 
+            m.id,
+            m.sender,
+            m.receveir,
+            m.contenu as message,
+            m.type,
+            m.status,
+            m.date_creation as date,
+            sender_user.nom as sender_nom,
+            sender_user.prenom as sender_prenom,
+            sender_user.username as sender_username,
+            receiver_user.nom as receiver_nom,
+            receiver_user.prenom as receiver_prenom,
+            receiver_user.username as receiver_username
+        FROM message m
+        LEFT JOIN users sender_user ON m.sender = sender_user.id
+        LEFT JOIN users receiver_user ON m.receveir = receiver_user.id
+        WHERE (m.sender = :user_id AND m.receveir = :other_user_id)
+           OR (m.sender = :other_user_id AND m.receveir = :user_id)
+        ORDER BY m.date_creation ASC
+    ");
+    
+    $stmt->execute([
+        ':user_id' => $_POST["user_id"],
+        ':other_user_id' => $other_user_id
+    ]);
     
     $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Formater les messages pour l'affichage
+    // Formater les messages pour correspondre à la structure attendue par l'Android
     $formattedMessages = [];
     foreach ($messages as $message) {
         $formattedMessages[] = [
             'id' => $message['id'],
-            'contenu' => $message['contenu'],
             'sender' => $message['sender'],
             'receveir' => $message['receveir'],
-            'date_creation' => $message['date_creation'],
-            'sender_name' => $message['sender_nom'] . ' ' . $message['sender_prenom'],
+            'message' => $message['message'],
+            'type' => $message['type'],
+            'status' => $message['status'],
+            'date' => $message['date'],
+            // Informations supplémentaires pour l'affichage
+            'sender_name' => trim($message['sender_nom'] . ' ' . $message['sender_prenom']),
             'sender_username' => $message['sender_username'],
-            'receiver_name' => $message['receiver_nom'] . ' ' . $message['receiver_prenom'],
-            'receiver_username' => $message['receiver_username'],
-            'is_sent_by_me' => $message['sender'] == $_POST["user_id"]
+            'receiver_name' => trim($message['receiver_nom'] . ' ' . $message['receiver_prenom']),
+            'receiver_username' => $message['receiver_username']
         ];
     }
     
     echo json_encode([
         'success' => true,
         'messages' => $formattedMessages,
-        'count' => count($formattedMessages),
-        'conversation_with' => $other_user_id ? $other_user_id : null
+        'count' => count($formattedMessages)
     ]);
     
 } catch (PDOException $e) {

@@ -31,7 +31,7 @@ if (empty($_POST["user_id"])) {
     exit;
 }
 
-// 3. Récupérer les conversations groupées par destinataire
+// 3. Récupérer les conversations groupées par destinataire avec les messages
 try {
     $stmt = $pdo->prepare("
         WITH conversations AS (
@@ -71,16 +71,55 @@ try {
     $stmt->execute([':user_id' => $_POST["user_id"]]);
     $conversations = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Formater les conversations
+    // Formater les conversations avec les messages détaillés
     $formattedConversations = [];
     foreach ($conversations as $conv) {
+        // Récupérer tous les messages de cette conversation
+        $stmtMessages = $pdo->prepare("
+            SELECT 
+                m.id,
+                m.contenu,
+                m.sender,
+                m.receveir,
+                m.date_creation,
+                sender_user.nom as sender_nom,
+                sender_user.prenom as sender_prenom,
+                receiver_user.nom as receiver_nom,
+                receiver_user.prenom as receiver_prenom
+            FROM message m
+            LEFT JOIN users sender_user ON m.sender = sender_user.id
+            LEFT JOIN users receiver_user ON m.receveir = receiver_user.id
+            WHERE (m.sender = :user_id AND m.receveir = :other_user_id)
+               OR (m.sender = :other_user_id AND m.receveir = :user_id)
+            ORDER BY m.date_creation ASC
+        ");
+        
+        $stmtMessages->execute([':user_id' => $_POST["user_id"], ':other_user_id' => $conv['other_user_id']]);
+        $messages = $stmtMessages->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Formater les messages
+        $formattedMessages = [];
+        foreach ($messages as $msg) {
+            $formattedMessages[] = [
+                'id' => $msg['id'],
+                'contenu' => $msg['contenu'],
+                'sender' => $msg['sender'],
+                'receveir' => $msg['receveir'],
+                'date_creation' => $msg['date_creation'],
+                'sender_name' => $msg['sender_nom'] . ' ' . $msg['sender_prenom'],
+                'receiver_name' => $msg['receiver_nom'] . ' ' . $msg['receiver_prenom'],
+                'is_sent_by_me' => $msg['sender'] == $_POST["user_id"]
+            ];
+        }
+        
         $formattedConversations[] = [
             'user_id' => $conv['other_user_id'],
             'user_name' => $conv['nom'] . ' ' . $conv['prenom'],
             'username' => $conv['username'],
             'last_message' => $conv['last_message'],
             'last_message_date' => $conv['last_message_date'],
-            'message_count' => $conv['message_count']
+            'message_count' => $conv['message_count'],
+            'messages' => $formattedMessages
         ];
     }
     
