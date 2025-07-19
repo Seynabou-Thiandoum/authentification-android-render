@@ -97,7 +97,7 @@ try {
         
         $formattedConversations[] = [
             'user_id' => $conv['other_user_id'],
-            'user_name' => $conv['nom'] . ' ' . $conv['prenom'],
+            'user_name' => $conv['prenom'] . ' ' . $conv['nom'],
             'username' => $conv['username'],
             'last_message' => $lastMessage,
             'last_message_date' => $lastMessageDate,
