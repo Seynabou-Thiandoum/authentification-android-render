@@ -33,39 +33,25 @@ if (empty($_POST["user_id"])) {
 
 // 3. Récupérer les conversations groupées par destinataire avec les messages
 try {
+    // Requête simplifiée pour éviter les erreurs
     $stmt = $pdo->prepare("
-        WITH conversations AS (
-            SELECT 
-                CASE 
-                    WHEN m.sender = :user_id THEN m.receveir
-                    ELSE m.sender
-                END as other_user_id,
-                MAX(m.date_creation) as last_message_date,
-                COUNT(*) as message_count
-            FROM message m
-            WHERE m.sender = :user_id OR m.receveir = :user_id
-            GROUP BY 
-                CASE 
-                    WHEN m.sender = :user_id THEN m.receveir
-                    ELSE m.sender
-                END
-        )
-        SELECT 
-            c.other_user_id,
-            c.last_message_date,
-            c.message_count,
+        SELECT DISTINCT
+            CASE 
+                WHEN m.sender = :user_id THEN m.receveir
+                ELSE m.sender
+            END as other_user_id,
             u.nom,
             u.prenom,
-            u.username,
-            (SELECT m.contenu 
-             FROM message m 
-             WHERE (m.sender = :user_id AND m.receveir = c.other_user_id) 
-                OR (m.sender = c.other_user_id AND m.receveir = :user_id)
-             ORDER BY m.date_creation DESC 
-             LIMIT 1) as last_message
-        FROM conversations c
-        LEFT JOIN users u ON c.other_user_id = u.id
-        ORDER BY c.last_message_date DESC
+            u.username
+        FROM message m
+        LEFT JOIN users u ON (
+            CASE 
+                WHEN m.sender = :user_id THEN m.receveir
+                ELSE m.sender
+            END = u.id
+        )
+        WHERE m.sender = :user_id OR m.receveir = :user_id
+        ORDER BY u.nom, u.prenom
     ");
     
     $stmt->execute([':user_id' => $_POST["user_id"]]);
@@ -81,14 +67,8 @@ try {
                 m.contenu,
                 m.sender,
                 m.receveir,
-                m.date_creation,
-                sender_user.nom as sender_nom,
-                sender_user.prenom as sender_prenom,
-                receiver_user.nom as receiver_nom,
-                receiver_user.prenom as receiver_prenom
+                m.date_creation
             FROM message m
-            LEFT JOIN users sender_user ON m.sender = sender_user.id
-            LEFT JOIN users receiver_user ON m.receveir = receiver_user.id
             WHERE (m.sender = :user_id AND m.receveir = :other_user_id)
                OR (m.sender = :other_user_id AND m.receveir = :user_id)
             ORDER BY m.date_creation ASC
@@ -96,6 +76,11 @@ try {
         
         $stmtMessages->execute([':user_id' => $_POST["user_id"], ':other_user_id' => $conv['other_user_id']]);
         $messages = $stmtMessages->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Calculer les statistiques
+        $messageCount = count($messages);
+        $lastMessage = $messageCount > 0 ? end($messages)['contenu'] : '';
+        $lastMessageDate = $messageCount > 0 ? end($messages)['date_creation'] : '';
         
         // Formater les messages
         $formattedMessages = [];
@@ -106,8 +91,6 @@ try {
                 'sender' => $msg['sender'],
                 'receveir' => $msg['receveir'],
                 'date_creation' => $msg['date_creation'],
-                'sender_name' => $msg['sender_nom'] . ' ' . $msg['sender_prenom'],
-                'receiver_name' => $msg['receiver_nom'] . ' ' . $msg['receiver_prenom'],
                 'is_sent_by_me' => $msg['sender'] == $_POST["user_id"]
             ];
         }
@@ -116,9 +99,9 @@ try {
             'user_id' => $conv['other_user_id'],
             'user_name' => $conv['nom'] . ' ' . $conv['prenom'],
             'username' => $conv['username'],
-            'last_message' => $conv['last_message'],
-            'last_message_date' => $conv['last_message_date'],
-            'message_count' => $conv['message_count'],
+            'last_message' => $lastMessage,
+            'last_message_date' => $lastMessageDate,
+            'message_count' => $messageCount,
             'messages' => $formattedMessages
         ];
     }

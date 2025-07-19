@@ -31,13 +31,9 @@ try {
 
       // Création de la table message
       $pdo->exec("
-      CREATE TABLE IF NOT EXISTS message (
-          id SERIAL PRIMARY KEY,
-          sender INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-          receveir INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-          contenu TEXT NOT NULL,
-          date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
+      ALTER TABLE message 
+        ADD COLUMN IF NOT EXISTS type VARCHAR(50) DEFAULT 'text',
+        ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'sent';
   ");
 
   echo json_encode(['success' => 'Table message créée avec succès']);
