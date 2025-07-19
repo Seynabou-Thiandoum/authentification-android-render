@@ -31,29 +31,58 @@ if (empty($_POST["user_id"])) {
     exit;
 }
 
+// Dans message.php, ajouter :
+$other_user_id = $_POST["other_user_id"] ?? null;
+
 // 3. Requête sécurisée avec PDO - Récupérer les messages avec les infos des utilisateurs
 try {
-    $stmt = $pdo->prepare("
-        SELECT 
-            m.id,
-            m.contenu,
-            m.sender,
-            m.receveir,
-            m.date_creation,
-            sender_user.nom as sender_nom,
-            sender_user.prenom as sender_prenom,
-            sender_user.username as sender_username,
-            receiver_user.nom as receiver_nom,
-            receiver_user.prenom as receiver_prenom,
-            receiver_user.username as receiver_username
-        FROM message m
-        LEFT JOIN users sender_user ON m.sender = sender_user.id
-        LEFT JOIN users receiver_user ON m.receveir = receiver_user.id
-        WHERE m.sender = :user_id OR m.receveir = :user_id
-        ORDER BY m.date_creation DESC
-    ");
+    if ($other_user_id) {
+        // Filtrer les messages entre les deux utilisateurs
+        $stmt = $pdo->prepare("
+            SELECT 
+                m.id,
+                m.contenu,
+                m.sender,
+                m.receveir,
+                m.date_creation,
+                sender_user.nom as sender_nom,
+                sender_user.prenom as sender_prenom,
+                sender_user.username as sender_username,
+                receiver_user.nom as receiver_nom,
+                receiver_user.prenom as receiver_prenom,
+                receiver_user.username as receiver_username
+            FROM message m
+            LEFT JOIN users sender_user ON m.sender = sender_user.id
+            LEFT JOIN users receiver_user ON m.receveir = receiver_user.id
+            WHERE (m.sender = :user_id AND m.receveir = :other_user_id)
+               OR (m.sender = :other_user_id AND m.receveir = :user_id)
+            ORDER BY m.date_creation ASC
+        ");
+        $stmt->execute([':user_id' => $_POST["user_id"], ':other_user_id' => $other_user_id]);
+    } else {
+        // Ancienne logique pour toutes les conversations
+        $stmt = $pdo->prepare("
+            SELECT 
+                m.id,
+                m.contenu,
+                m.sender,
+                m.receveir,
+                m.date_creation,
+                sender_user.nom as sender_nom,
+                sender_user.prenom as sender_prenom,
+                sender_user.username as sender_username,
+                receiver_user.nom as receiver_nom,
+                receiver_user.prenom as receiver_prenom,
+                receiver_user.username as receiver_username
+            FROM message m
+            LEFT JOIN users sender_user ON m.sender = sender_user.id
+            LEFT JOIN users receiver_user ON m.receveir = receiver_user.id
+            WHERE m.sender = :user_id OR m.receveir = :user_id
+            ORDER BY m.date_creation DESC
+        ");
+        $stmt->execute([':user_id' => $_POST["user_id"]]);
+    }
     
-    $stmt->execute([':user_id' => $_POST["user_id"]]);
     $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Formater les messages pour l'affichage
@@ -76,7 +105,8 @@ try {
     echo json_encode([
         'success' => true,
         'messages' => $formattedMessages,
-        'count' => count($formattedMessages)
+        'count' => count($formattedMessages),
+        'conversation_with' => $other_user_id ? $other_user_id : null
     ]);
     
 } catch (PDOException $e) {
